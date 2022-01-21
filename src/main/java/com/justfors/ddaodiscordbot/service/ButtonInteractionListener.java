@@ -4,7 +4,7 @@ import com.justfors.ddaodiscordbot.listener.EventListener;
 import com.justfors.ddaodiscordbot.listener.MessageListener;
 import com.justfors.ddaodiscordbot.model.DdaoUser;
 import com.justfors.ddaodiscordbot.repository.DdaoUserRepository;
-import discord4j.core.event.domain.message.MessageCreateEvent;
+import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
 import discord4j.core.object.entity.Member;
 import discord4j.core.object.entity.Message;
 import java.util.UUID;
@@ -16,40 +16,37 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 @Service
-public class MessageCreateListener extends MessageListener implements EventListener<MessageCreateEvent> {
+public class ButtonInteractionListener extends MessageListener implements EventListener<ButtonInteractionEvent> {
 
 	@Override
-	public Class<MessageCreateEvent> getEventType() {
-		return MessageCreateEvent.class;
+	public Class<ButtonInteractionEvent> getEventType() {
+		return ButtonInteractionEvent.class;
 	}
 
 	private final DdaoUserRepository ddaoUserRepository;
 
 	@Value("${wallet.confirmation.link}")
 	private String walletConfirmationLink;
-	@Value("${bot.channel.name}")
-	private String botChannelName;
+	@Value("${wallet.bind.button}")
+	private String walletBindButton;
 
-	public MessageCreateListener(final DdaoUserRepository ddaoUserRepository) {
+	public ButtonInteractionListener(final DdaoUserRepository ddaoUserRepository) {
 		this.ddaoUserRepository = ddaoUserRepository;
 	}
 
 	@Override
 	@Transactional
-	public Mono<Void> execute(MessageCreateEvent event) {
-		Message message = event.getMessage();
-		var member = message.getAuthorAsMember().block();
+	public Mono<Void> execute(ButtonInteractionEvent event) {
+		Message message = event.getMessage().get();
+		var member = event.getInteraction().getMember().orElse(null);
 		if (member != null) {
 			var ddaoUser = ddaoUserRepository.getByDiscrodID(member.getId().asLong());
 			if (ddaoUser == null) {
 				ddaoUser = ddaoUserRepository.save(createDdaoUser(member));
 			}
-			var guild = event.getGuild().block();
-			if (guild != null && "/wallet-connect".equalsIgnoreCase(message.getContent())) {
-				if (message.getChannel().block().getRestChannel().getData().block().name().get().contains(botChannelName)) {
-					message.delete().block();
-					member.getPrivateChannel().block().createMessage(walletConfirmationLink + ddaoUser.getUuid()).block();
-				}
+			var guild = message.getGuild().block();
+			if (guild != null && event.getCustomId().equals(walletBindButton)) {
+				member.getPrivateChannel().block().createMessage(walletConfirmationLink + ddaoUser.getUuid()).block();
 			}
 		}
 		return processCommand(message);
