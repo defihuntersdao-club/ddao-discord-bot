@@ -23,7 +23,7 @@ public class DdaoUser {
 
 	private boolean removable = true;
 
-	private UUID uuid;
+	private String uuid;
 
 	private boolean level1 = false;
 	private boolean level2 = false;

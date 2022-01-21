@@ -59,7 +59,7 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 		user.setDiscriminator(member.getDiscriminator());
 		user.setDiscordId(member.getId().asLong());
 
-		user.setUuid(UUID.randomUUID());
+		user.setUuid(UUID.randomUUID().toString());
 
 		return user;
 	}
