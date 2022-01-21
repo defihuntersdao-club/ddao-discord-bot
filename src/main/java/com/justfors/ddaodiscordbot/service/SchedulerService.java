@@ -152,9 +152,9 @@ public class SchedulerService {
 						boolean isLvl1 = contractLevel1.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
 						boolean isLvl2 = contractLevel2.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
 						boolean isLvl3 = contractLevel3.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
-						if (isLvl1) {addRole(v, roleShrimp);} else {removeRole(v, roleShrimp);}
-						if (isLvl2) {addRole(v, roleShark);} else {removeRole(v, roleShark);}
-						if (isLvl3) {addRole(v, roleWhale);} else {removeRole(v, roleWhale);}
+						if (isLvl1) {addRole(v, roleShrimp);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShrimp);}}
+						if (isLvl2) {addRole(v, roleShark);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShark);}}
+						if (isLvl3) {addRole(v, roleWhale);} else {if (ddaoUser.isRemovable()) {removeRole(v, roleWhale);}}
 						ddaoUser.setLevel1(isLvl1);
 						ddaoUser.setLevel2(isLvl2);
 						ddaoUser.setLevel3(isLvl3);
