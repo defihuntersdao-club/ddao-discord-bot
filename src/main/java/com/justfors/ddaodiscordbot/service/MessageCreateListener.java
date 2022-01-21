@@ -27,6 +27,8 @@ public class MessageCreateListener extends MessageListener implements EventListe
 
 	@Value("${wallet.confirmation.link}")
 	private String walletConfirmationLink;
+	@Value("${bot.channel.name}")
+	private String botChannelName;
 
 	public MessageCreateListener(final DdaoUserRepository ddaoUserRepository) {
 		this.ddaoUserRepository = ddaoUserRepository;
@@ -44,8 +46,10 @@ public class MessageCreateListener extends MessageListener implements EventListe
 			}
 			var guild = event.getGuild().block();
 			if (guild != null && "/wallet-connect".equalsIgnoreCase(message.getContent())) {
-				message.delete().block();
-				member.getPrivateChannel().block().createMessage(walletConfirmationLink + ddaoUser.getUuid()).block();
+				if (message.getChannel().block().getRestChannel().getData().block().name().get().contains(botChannelName)) {
+					message.delete().block();
+					member.getPrivateChannel().block().createMessage(walletConfirmationLink + ddaoUser.getUuid()).block();
+				}
 			}
 		}
 		return processCommand(message);
