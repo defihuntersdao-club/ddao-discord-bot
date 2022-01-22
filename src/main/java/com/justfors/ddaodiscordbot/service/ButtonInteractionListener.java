@@ -1,5 +1,7 @@
 package com.justfors.ddaodiscordbot.service;
 
+import static java.lang.String.format;
+
 import com.justfors.ddaodiscordbot.listener.EventListener;
 import com.justfors.ddaodiscordbot.listener.MessageListener;
 import com.justfors.ddaodiscordbot.model.DdaoUser;
@@ -7,6 +9,7 @@ import com.justfors.ddaodiscordbot.repository.DdaoUserRepository;
 import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
 import discord4j.core.object.entity.Member;
 import discord4j.core.object.entity.Message;
+import discord4j.core.spec.EmbedCreateSpec;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +34,13 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 	@Value("${wallet.bind.button}")
 	private String walletBindButton;
 
+	private String errorMsgCantSend = "Cannot send messages to this user";
+	private String errorMsgCantSendResponse = "Hi, I cannot send you a message.\n"
+			+ "Please enable direct messages sending in your settings.\n"
+			+ "\n"
+			+ "You can disable it after the verification is completed.";
+	private String errorMsgSmthWntWrng = "Oops, something went wrong, contact the support.";
+
 	public ButtonInteractionListener(final DdaoUserRepository ddaoUserRepository) {
 		this.ddaoUserRepository = ddaoUserRepository;
 	}
@@ -38,23 +48,38 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 	@Override
 	@Transactional
 	public Mono<Void> execute(ButtonInteractionEvent event) {
-		Message message = event.getMessage().get();
-		var member = event.getInteraction().getMember().orElse(null);
-		if (member != null) {
-			var ddaoUser = ddaoUserRepository.getByDiscrodID(member.getId().asLong());
-			if (ddaoUser == null) {
-				ddaoUser = ddaoUserRepository.save(createDdaoUser(member));
+		try {
+			Message message = event.getMessage().get();
+			var member = event.getInteraction().getMember().orElse(null);
+			if (member != null) {
+				log.info(format("wallet bind button clicked by discordId %s", member.getId().asLong()));
+				var ddaoUser = ddaoUserRepository.getByDiscrodID(member.getId().asLong());
+				if (ddaoUser == null) {
+					ddaoUser = ddaoUserRepository.save(createDdaoUser(member));
+					log.info(format("New user added %s", ddaoUser.getUserName()));
+				}
+				var guild = message.getGuild().block();
+				if (guild != null && event.getCustomId().equals(walletBindButton)) {
+					member.getPrivateChannel().block().createMessage(walletConfirmationLink + ddaoUser.getUuid()).block();
+					log.info(format("Link sent to user %s", ddaoUser.getUserName()));
+					event.reply(InteractionApplicationCommandCallbackSpec.builder()
+							.content("I've sent you the link.")
+							.ephemeral(true)
+							.build()).block();
+				}
 			}
-			var guild = message.getGuild().block();
-			if (guild != null && event.getCustomId().equals(walletBindButton)) {
-				member.getPrivateChannel().block().createMessage(walletConfirmationLink + ddaoUser.getUuid()).block();
-			}
+		} catch (Throwable e) {
+			log.error("Unable to process " + getEventType().getSimpleName(), e);
+			boolean isErrorMsgCantSend = e.getMessage().contains(errorMsgCantSend);
+			event.reply(InteractionApplicationCommandCallbackSpec.builder()
+					.addEmbed(EmbedCreateSpec.builder()
+							.description(isErrorMsgCantSend ? errorMsgCantSendResponse : errorMsgSmthWntWrng)
+							.image(isErrorMsgCantSend ? "https://i.imgur.com/xXzmVEs.png" : "https://t3.ftcdn.net/jpg/02/01/43/66/360_F_201436679_ZCLSEuwhRvmQEVofXHPpvLeV5sBLQ3vp.jpg")
+							.build())
+					.ephemeral(true)
+					.build()).block();
 		}
-
-		return event.reply(InteractionApplicationCommandCallbackSpec.builder()
-				.content("I've sent you the link.")
-				.ephemeral(true)
-				.build());
+		return Mono.empty();
 	}
 
 	private DdaoUser createDdaoUser(Member member) {

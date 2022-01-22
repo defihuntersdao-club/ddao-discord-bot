@@ -5,6 +5,7 @@ import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClientBuilder;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.Event;
+import discord4j.core.event.domain.message.MessageCreateEvent;
 import discord4j.core.object.component.ActionRow;
 import discord4j.core.object.component.Button;
 import discord4j.core.object.entity.channel.GuildMessageChannel;
@@ -19,6 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import reactor.core.publisher.Mono;
 
 @Configuration
 public class BotConfiguration {
@@ -70,10 +72,10 @@ public class BotConfiguration {
 //						.build()
 //		).block();
 
-		for(EventListener<T> listener : eventListeners) {
-			client.on(listener.getEventType())
-					.flatMap(listener::execute)
-					.onErrorResume(listener::handleError)
+		for (EventListener<T> listener : eventListeners) {
+			client.on(listener.getEventType(), event -> {
+						return Mono.fromRunnable(() -> listener.execute(event));
+					})
 					.subscribe();
 		}
 
