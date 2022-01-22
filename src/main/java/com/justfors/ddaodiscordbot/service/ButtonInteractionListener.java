@@ -7,6 +7,7 @@ import com.justfors.ddaodiscordbot.repository.DdaoUserRepository;
 import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
 import discord4j.core.object.entity.Member;
 import discord4j.core.object.entity.Message;
+import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,7 +50,11 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 				member.getPrivateChannel().block().createMessage(walletConfirmationLink + ddaoUser.getUuid()).block();
 			}
 		}
-		return processCommand(message);
+
+		return event.reply(InteractionApplicationCommandCallbackSpec.builder()
+				.content("Link sent.")
+				.ephemeral(true)
+				.build());
 	}
 
 	private DdaoUser createDdaoUser(Member member) {
