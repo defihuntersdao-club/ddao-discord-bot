@@ -52,7 +52,7 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 		}
 
 		return event.reply(InteractionApplicationCommandCallbackSpec.builder()
-				.content("Link sent.")
+				.content("I've sent you the link.")
 				.ephemeral(true)
 				.build());
 	}

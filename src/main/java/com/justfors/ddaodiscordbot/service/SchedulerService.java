@@ -41,6 +41,8 @@ public class SchedulerService {
 	private String roleShark;
 	@Value("${role.whale}")
 	private String roleWhale;
+	@Value("${role.hamster}")
+	private String roleHamster;
 
 	private static final Credentials CREDS = Credentials.create("1", "1");
 	private static final Web3j CLIENT = Web3j.build(new HttpService("https://matic-mainnet.chainstacklabs.com"));
@@ -51,10 +53,13 @@ public class SchedulerService {
 	private String contractLevel2Address;
 	@Value("${contractLevel3Address}")
 	private String contractLevel3Address;
+	@Value("${contractHamsterAddress}")
+	private String contractHamsterAddress;
 
 	private ERC20 contractLevel1 = null;
 	private ERC20 contractLevel2 = null;
 	private ERC20 contractLevel3 = null;
+	private ERC20 contractHamster = null;
 
 	@SneakyThrows
 	@PostConstruct
@@ -62,6 +67,7 @@ public class SchedulerService {
 		contractLevel1 = ERC20.load(contractLevel1Address, CLIENT, CREDS, new DefaultGasProvider());
 		contractLevel2 = ERC20.load(contractLevel2Address, CLIENT, CREDS, new DefaultGasProvider());
 		contractLevel3 = ERC20.load(contractLevel3Address, CLIENT, CREDS, new DefaultGasProvider());
+		contractHamster = ERC20.load(contractHamsterAddress, CLIENT, CREDS, new DefaultGasProvider());
 	}
 
 	private final DdaoUserRepository ddaoUserRepository;
@@ -152,12 +158,15 @@ public class SchedulerService {
 						boolean isLvl1 = contractLevel1.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
 						boolean isLvl2 = contractLevel2.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
 						boolean isLvl3 = contractLevel3.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
+						boolean isHamster = contractHamster.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
 						if (isLvl1) {addRole(v, roleShrimp);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShrimp);}}
 						if (isLvl2) {addRole(v, roleShark);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShark);}}
 						if (isLvl3) {addRole(v, roleWhale);} else {if (ddaoUser.isRemovable()) {removeRole(v, roleWhale);}}
+						if (isHamster) {addRole(v, roleHamster);} else {if (ddaoUser.isRemovable()) {removeRole(v, roleHamster);}}
 						ddaoUser.setLevel1(isLvl1);
 						ddaoUser.setLevel2(isLvl2);
 						ddaoUser.setLevel3(isLvl3);
+						ddaoUser.setHamster(isHamster);
 						ddaoUserRepository.save(ddaoUser);
 					} catch (Exception e) {
 						log.error(e.getMessage());

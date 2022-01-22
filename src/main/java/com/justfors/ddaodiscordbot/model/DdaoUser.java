@@ -28,7 +28,8 @@ public class DdaoUser {
 	private boolean level1 = false;
 	private boolean level2 = false;
 	private boolean level3 = false;
+	private boolean hamster = false;
 
-    private String walletAddress;
+	private String walletAddress;
 	private boolean walletConfirm = false;
 }
