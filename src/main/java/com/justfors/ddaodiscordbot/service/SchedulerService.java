@@ -8,6 +8,7 @@ import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.object.entity.Member;
 import discord4j.core.object.entity.Role;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -95,7 +96,8 @@ public class SchedulerService {
 		}
 		if (guildId != null) {
 			if (ROLES.isEmpty()) {
-				ROLES = client.getGuildRoles(guildId).collectList().block();
+				var actualRoles = client.getGuildRoles(guildId).collectList().block(Duration.ofSeconds(10));
+				ROLES = actualRoles != null ? actualRoles : ROLES;
 			}
 			refreshUserList();
 			checkWalletAssign();
@@ -105,11 +107,11 @@ public class SchedulerService {
 
 	private void refreshUserList() {
 		log.info("started refreshUserList");
-		List<Member> members = client.requestMembers(guildId).collectList().block();
+		List<Member> members = client.requestMembers(guildId).collectList().block(Duration.ofSeconds(10));
 		if (members != null) {
 			members.forEach(m -> {
 				if (USER_ROLES.get(m.getId().asLong()) == null) {
-					USER_ROLES.put(m.getId().asLong(), Pair.of(m, m.getRoles().collectList().block()));
+					USER_ROLES.put(m.getId().asLong(), Pair.of(m, m.getRoles().collectList().block(Duration.ofSeconds(10))));
 				}
 			});
 			USER_ROLES.forEach((k,v) -> {
@@ -131,7 +133,7 @@ public class SchedulerService {
 	@Transactional
 	public void checkWalletAssign() {
 		log.info("started checkWalletAssign");
-		List<Member> members = client.requestMembers(guildId).collectList().block();
+		List<Member> members = client.requestMembers(guildId).collectList().block(Duration.ofSeconds(10));
 		if (members != null) {
 			members.forEach(m -> {
 				var ddaoUser = ddaoUserRepository.getByDiscrodID(m.getId().asLong());
@@ -139,7 +141,12 @@ public class SchedulerService {
 					if (StringUtils.isNotEmpty(ddaoUser.getWalletAddress()) && !ddaoUser.isWalletConfirm()){
 						ddaoUser.setWalletConfirm(true);
 						ddaoUserRepository.save(ddaoUser);
-						m.getPrivateChannel().block().createMessage("Your wallet successfully added.").block();
+						var channel = m.getPrivateChannel().block(Duration.ofSeconds(10));
+						if (channel != null) {
+							channel.createMessage("Your wallet successfully added.").block(Duration.ofSeconds(10));
+						} else {
+							log.info("couldn't get a channel to send the link message.");
+						}
 					}
 				}
 			});
@@ -179,7 +186,7 @@ public class SchedulerService {
 
 	private void addRole(Pair<Member, List<Role>> pair, String role){
 		if (!isRoleExists(pair.getValue(), role)) {
-			pair.getKey().addRole(Snowflake.of(getRoleId(role))).block();
+			pair.getKey().addRole(Snowflake.of(getRoleId(role))).block(Duration.ofSeconds(10));
 			pair.getValue().add(getRoleByName(ROLES, role));
 			log.info(format("Roles %s added to user %s", role, pair.getKey().getUsername()));
 		}
@@ -187,7 +194,7 @@ public class SchedulerService {
 
 	private void removeRole(Pair<Member, List<Role>> pair, String role){
 		if (isRoleExists(pair.getValue(), role)) {
-			pair.getKey().removeRole(Snowflake.of(getRoleId(role))).block();
+			pair.getKey().removeRole(Snowflake.of(getRoleId(role))).block(Duration.ofSeconds(10));
 			pair.getValue().remove(getRoleByName(pair.getValue(), role));
 			log.info(format("Role %s removed from user %s", role, pair.getKey().getUsername()));
 		}

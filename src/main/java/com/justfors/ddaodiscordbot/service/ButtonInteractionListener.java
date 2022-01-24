@@ -11,6 +11,7 @@ import discord4j.core.object.entity.Member;
 import discord4j.core.object.entity.Message;
 import discord4j.core.spec.EmbedCreateSpec;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
+import java.time.Duration;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,14 +59,14 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 					ddaoUser = ddaoUserRepository.save(createDdaoUser(member));
 					log.info(format("New user added %s", ddaoUser.getUserName()));
 				}
-				var guild = message.getGuild().block();
+				var guild = message.getGuild().block(Duration.ofSeconds(10));
 				if (guild != null && event.getCustomId().equals(walletBindButton)) {
-					member.getPrivateChannel().block().createMessage(walletConfirmationLink + ddaoUser.getUuid()).block();
+					member.getPrivateChannel().block(Duration.ofSeconds(10)).createMessage(walletConfirmationLink + ddaoUser.getUuid()).block(Duration.ofSeconds(10));
 					log.info(format("Link sent to user %s", ddaoUser.getUserName()));
 					event.reply(InteractionApplicationCommandCallbackSpec.builder()
 							.content("I've sent you the link.")
 							.ephemeral(true)
-							.build()).block();
+							.build()).block(Duration.ofSeconds(10));
 				}
 			}
 		} catch (Throwable e) {
@@ -77,7 +78,7 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 							.image(isErrorMsgCantSend ? "https://i.imgur.com/xXzmVEs.png" : "https://t3.ftcdn.net/jpg/02/01/43/66/360_F_201436679_ZCLSEuwhRvmQEVofXHPpvLeV5sBLQ3vp.jpg")
 							.build())
 					.ephemeral(true)
-					.build()).block();
+					.build()).block(Duration.ofSeconds(10));
 		}
 		return Mono.empty();
 	}
