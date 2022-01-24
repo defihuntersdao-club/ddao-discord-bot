@@ -1,6 +1,5 @@
 package com.justfors.ddaodiscordbot.model;
 
-import java.util.UUID;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
@@ -32,4 +31,10 @@ public class DdaoUser {
 
 	private String walletAddress;
 	private boolean walletConfirm = false;
+
+	private String telegramCode;
+	private boolean telegramConfirm = false;
+
+	private Long telegramId;
+
 }

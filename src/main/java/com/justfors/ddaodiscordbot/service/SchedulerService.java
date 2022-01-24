@@ -165,7 +165,9 @@ public class SchedulerService {
 						boolean isLvl1 = contractLevel1.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
 						boolean isLvl2 = contractLevel2.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
 						boolean isLvl3 = contractLevel3.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
-						boolean isHamster = contractHamster.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
+						boolean isHamster = ddaoUser.isTelegramConfirm() ?
+								ddaoUser.isTelegramConfirm() :
+								contractHamster.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
 						if (isLvl1) {addRole(v, roleShrimp);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShrimp);}}
 						if (isLvl2) {addRole(v, roleShark);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShark);}}
 						if (isLvl3) {addRole(v, roleWhale);} else {if (ddaoUser.isRemovable()) {removeRole(v, roleWhale);}}
@@ -181,7 +183,7 @@ public class SchedulerService {
 				}
 			}
 		});
-		log.info("started refreshUserRoles");
+		log.info("finished refreshUserRoles");
 	}
 
 	private void addRole(Pair<Member, List<Role>> pair, String role){

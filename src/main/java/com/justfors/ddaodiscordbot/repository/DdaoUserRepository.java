@@ -8,4 +8,7 @@ public interface DdaoUserRepository extends JpaRepository<DdaoUser, Long> {
 
 	@Query("select e from DdaoUser e where e.discordId = :discrodId")
 	DdaoUser getByDiscrodID(Long discrodId);
+
+	@Query("select e from DdaoUser e where e.telegramId = :tgId")
+	DdaoUser findByTGID(Long tgId);
 }

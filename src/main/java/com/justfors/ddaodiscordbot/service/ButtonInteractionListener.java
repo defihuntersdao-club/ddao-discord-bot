@@ -14,6 +14,7 @@ import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
 import java.time.Duration;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,10 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 	private String walletConfirmationLink;
 	@Value("${wallet.bind.button}")
 	private String walletBindButton;
+	@Value("${tg.bind.button}")
+	private String tgBindButton;
+	@Value("${tg.bind.prefix}")
+	private String tgBindPrefix;
 
 	private String errorMsgCantSend = "Cannot send messages to this user";
 	private String errorMsgCantSendResponse = "Hi, I cannot send you a message.\n"
@@ -53,20 +58,35 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 			Message message = event.getMessage().get();
 			var member = event.getInteraction().getMember().orElse(null);
 			if (member != null) {
-				log.info(format("wallet bind button clicked by discordId %s", member.getId().asLong()));
+				log.info(format("button clicked by discordId %s", member.getId().asLong()));
 				var ddaoUser = ddaoUserRepository.getByDiscrodID(member.getId().asLong());
 				if (ddaoUser == null) {
 					ddaoUser = ddaoUserRepository.save(createDdaoUser(member));
 					log.info(format("New user added %s", ddaoUser.getUserName()));
 				}
 				var guild = message.getGuild().block(Duration.ofSeconds(10));
-				if (guild != null && event.getCustomId().equals(walletBindButton)) {
-					member.getPrivateChannel().block(Duration.ofSeconds(10)).createMessage(walletConfirmationLink + ddaoUser.getUuid()).block(Duration.ofSeconds(10));
-					log.info(format("Link sent to user %s", ddaoUser.getUserName()));
-					event.reply(InteractionApplicationCommandCallbackSpec.builder()
-							.content("I've sent you the link.")
-							.ephemeral(true)
-							.build()).block(Duration.ofSeconds(10));
+				if (guild != null) {
+					var privateChannel = member.getPrivateChannel().block(Duration.ofSeconds(10));
+					if (event.getCustomId().equals(walletBindButton)) {
+						privateChannel.createMessage(walletConfirmationLink + ddaoUser.getUuid())
+								.block(Duration.ofSeconds(10));
+						log.info(format("Link sent to user %s", ddaoUser.getUserName()));
+						event.reply(InteractionApplicationCommandCallbackSpec.builder()
+								.content("I've sent you the link.")
+								.ephemeral(true)
+								.build()).block(Duration.ofSeconds(10));
+					} else if (event.getCustomId().equals(tgBindButton)) {
+						var secretCode = tgBindPrefix + RandomStringUtils.randomAlphanumeric(10);
+						privateChannel.createMessage(secretCode)
+								.block(Duration.ofSeconds(10));
+						log.info(format("Code sent to user %s", ddaoUser.getUserName()));
+						event.reply(InteractionApplicationCommandCallbackSpec.builder()
+								.content("I've sent you the secret code for telegram verification.")
+								.ephemeral(true)
+								.build()).block(Duration.ofSeconds(10));
+						ddaoUser.setTelegramCode(secretCode);
+						ddaoUserRepository.save(ddaoUser);
+					}
 				}
 			}
 		} catch (Throwable e) {
