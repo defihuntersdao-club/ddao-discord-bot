@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 import javax.annotation.PostConstruct;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,8 +48,9 @@ public class SchedulerService {
 	@Value("${role.hamster}")
 	private String roleHamster;
 
-	private static final Credentials CREDS = Credentials.create("1", "1");
-	private static final Web3j CLIENT = Web3j.build(new HttpService("https://matic-mainnet.chainstacklabs.com"));
+	private static final CircularFifoQueue<String> NODE_URLS = new CircularFifoQueue();
+
+	private static final Credentials CREDENTIALS = Credentials.create("1", "1");
 
 	@Value("${contractLevel1Address}")
 	private String contractLevel1Address;
@@ -65,49 +69,70 @@ public class SchedulerService {
 	@SneakyThrows
 	@PostConstruct
 	public void init() {
-		contractLevel1 = ERC20.load(contractLevel1Address, CLIENT, CREDS, new DefaultGasProvider());
-		contractLevel2 = ERC20.load(contractLevel2Address, CLIENT, CREDS, new DefaultGasProvider());
-		contractLevel3 = ERC20.load(contractLevel3Address, CLIENT, CREDS, new DefaultGasProvider());
-		contractHamster = ERC20.load(contractHamsterAddress, CLIENT, CREDS, new DefaultGasProvider());
+		NODE_URLS.add("https://rpc-mainnet.matic.network");
+		NODE_URLS.add("https://matic-mainnet.chainstacklabs.com");
+		NODE_URLS.add("https://rpc-mainnet.maticvigil.com");
+		NODE_URLS.add("https://rpc-mainnet.matic.quiknode.pro");
+		NODE_URLS.add("https://matic-mainnet-full-rpc.bwarelabs.com");
+
+		Web3j web3j = Web3j.build(new HttpService(getNode()));
+
+		contractLevel1 = ERC20.load(contractLevel1Address, web3j, CREDENTIALS, new DefaultGasProvider());
+		contractLevel2 = ERC20.load(contractLevel2Address, web3j, CREDENTIALS, new DefaultGasProvider());
+		contractLevel3 = ERC20.load(contractLevel3Address, web3j, CREDENTIALS, new DefaultGasProvider());
+		contractHamster = ERC20.load(contractHamsterAddress, web3j, CREDENTIALS, new DefaultGasProvider());
+	}
+
+	private void reinit(){
+		Web3j web3j = Web3j.build(new HttpService(getNode()));
+
+		contractLevel1 = ERC20.load(contractLevel1Address, web3j, CREDENTIALS, new DefaultGasProvider());
+		contractLevel2 = ERC20.load(contractLevel2Address, web3j, CREDENTIALS, new DefaultGasProvider());
+		contractLevel3 = ERC20.load(contractLevel3Address, web3j, CREDENTIALS, new DefaultGasProvider());
+		contractHamster = ERC20.load(contractHamsterAddress, web3j, CREDENTIALS, new DefaultGasProvider());
+	}
+
+	private String getNode() {
+		String currentNodeUrl = NODE_URLS.poll();
+		NODE_URLS.add(currentNodeUrl);
+		log.info(format("Current Node is %s", currentNodeUrl));
+		return currentNodeUrl;
 	}
 
 	private final DdaoUserRepository ddaoUserRepository;
-	private final GatewayDiscordClient client;
+	private final GatewayDiscordClient discordClient;
 
 	public SchedulerService(
 			final DdaoUserRepository ddaoUserRepository,
-			final GatewayDiscordClient client) {
+			final GatewayDiscordClient discordClient) {
 		this.ddaoUserRepository = ddaoUserRepository;
-		this.client = client;
+		this.discordClient = discordClient;
 	}
 
-	private static Snowflake guildId;
 	private static Map<Long, Pair<Member, List<Role>>> USER_ROLES = new ConcurrentHashMap();
 	private static List<Role> ROLES = new ArrayList<>();
 
 	@Scheduled(cron = "0 * * * * *")
 	public void refreshDiscrodMembers() {
-		if (getGuildId() == null) {
-			client.getGuilds().collectList().doOnNext(e -> {
-				e.forEach(g -> {
-					setGuildId(g.getId());
-				});
-			}).subscribe();
-		}
+		var guildId = getGuildId();
 		if (guildId != null) {
 			if (ROLES.isEmpty()) {
-				var actualRoles = client.getGuildRoles(guildId).collectList().block(Duration.ofSeconds(10));
+				var actualRoles = discordClient.getGuildRoles(guildId).collectList().block(Duration.ofSeconds(10));
 				ROLES = actualRoles != null ? actualRoles : ROLES;
 			}
-			refreshUserList();
-			checkWalletAssign();
+			List<Member> members = discordClient.requestMembers(guildId).collectList().block(Duration.ofSeconds(10));
+			refreshUserList(members);
+			checkWalletAssign(members);
 			refreshUserRoles();
 		}
 	}
 
-	private void refreshUserList() {
+//	TODO: create separated listener on users events, to reduce load on @Schedule
+//	MemberJoinEvent: a user has joined a guild
+//	MemberLeaveEvent: a user has left or was kicked from a guild
+//	MemberUpdateEvent: a user had their nickname and/or roles change
+	private void refreshUserList(List<Member> members) {
 		log.info("started refreshUserList");
-		List<Member> members = client.requestMembers(guildId).collectList().block(Duration.ofSeconds(10));
 		if (members != null) {
 			members.forEach(m -> {
 				if (USER_ROLES.get(m.getId().asLong()) == null) {
@@ -131,12 +156,11 @@ public class SchedulerService {
 	}
 
 	@Transactional
-	public void checkWalletAssign() {
+	public void checkWalletAssign(List<Member> members) {
 		log.info("started checkWalletAssign");
-		List<Member> members = client.requestMembers(guildId).collectList().block(Duration.ofSeconds(10));
 		if (members != null) {
 			members.forEach(m -> {
-				var ddaoUser = ddaoUserRepository.getByDiscrodID(m.getId().asLong());
+				var ddaoUser = ddaoUserRepository.getByDiscordID(m.getId().asLong());
 				if (ddaoUser != null) {
 					if (StringUtils.isNotEmpty(ddaoUser.getWalletAddress()) && !ddaoUser.isWalletConfirm()){
 						ddaoUser.setWalletConfirm(true);
@@ -162,12 +186,12 @@ public class SchedulerService {
 			if (ddaoUser != null) {
 				if (StringUtils.isNotEmpty(ddaoUser.getWalletAddress())) {
 					try {
-						boolean isLvl1 = contractLevel1.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
-						boolean isLvl2 = contractLevel2.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
-						boolean isLvl3 = contractLevel3.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
+						boolean isLvl1 = contractLevel1.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get(10, TimeUnit.SECONDS).intValue() > 0;
+						boolean isLvl2 = contractLevel2.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get(10, TimeUnit.SECONDS).intValue() > 0;
+						boolean isLvl3 = contractLevel3.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get(10, TimeUnit.SECONDS).intValue() > 0;
 						boolean isHamster = ddaoUser.isTelegramConfirm() ?
 								ddaoUser.isTelegramConfirm() :
-								contractHamster.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get().intValue() > 0;
+								contractHamster.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get(10, TimeUnit.SECONDS).intValue() > 0;
 						if (isLvl1) {addRole(v, roleShrimp);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShrimp);}}
 						if (isLvl2) {addRole(v, roleShark);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShark);}}
 						if (isLvl3) {addRole(v, roleWhale);} else {if (ddaoUser.isRemovable()) {removeRole(v, roleWhale);}}
@@ -177,6 +201,9 @@ public class SchedulerService {
 						ddaoUser.setLevel3(isLvl3);
 						ddaoUser.setHamster(isHamster);
 						ddaoUserRepository.save(ddaoUser);
+					} catch (TimeoutException e) {
+						log.error("Got an timeout exception, trying to change node for contract check.");
+						reinit();
 					} catch (Exception e) {
 						log.error(e.getMessage());
 					}
@@ -188,14 +215,16 @@ public class SchedulerService {
 
 	private void addRole(Pair<Member, List<Role>> pair, String role){
 		if (!isRoleExists(pair.getValue(), role)) {
+			log.info(format("Trying to add role %s to user %s", role, pair.getKey().getUsername()));
 			pair.getKey().addRole(Snowflake.of(getRoleId(role))).block(Duration.ofSeconds(10));
 			pair.getValue().add(getRoleByName(ROLES, role));
-			log.info(format("Roles %s added to user %s", role, pair.getKey().getUsername()));
+			log.info(format("Role %s added to user %s", role, pair.getKey().getUsername()));
 		}
 	}
 
 	private void removeRole(Pair<Member, List<Role>> pair, String role){
 		if (isRoleExists(pair.getValue(), role)) {
+			log.info(format("Trying to remove role %s to user %s", role, pair.getKey().getUsername()));
 			pair.getKey().removeRole(Snowflake.of(getRoleId(role))).block(Duration.ofSeconds(10));
 			pair.getValue().remove(getRoleByName(pair.getValue(), role));
 			log.info(format("Role %s removed from user %s", role, pair.getKey().getUsername()));
@@ -229,11 +258,14 @@ public class SchedulerService {
 	}
 
 	private Snowflake getGuildId() {
-		return guildId;
-	}
-
-	private void setGuildId(final Snowflake guildId) {
-		this.guildId = guildId;
+		if (DiscordDataCache.getGuildId() == null) {
+			discordClient.getGuilds().collectList().doOnNext(e -> {
+				e.forEach(g -> {
+					DiscordDataCache.setGuildId(g.getId());
+				});
+			}).block(Duration.ofSeconds(10));
+		}
+		return DiscordDataCache.getGuildId();
 	}
 
 }

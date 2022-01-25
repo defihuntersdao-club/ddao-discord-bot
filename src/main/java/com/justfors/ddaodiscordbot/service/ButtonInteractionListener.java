@@ -59,7 +59,7 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 			var member = event.getInteraction().getMember().orElse(null);
 			if (member != null) {
 				log.info(format("button clicked by discordId %s", member.getId().asLong()));
-				var ddaoUser = ddaoUserRepository.getByDiscrodID(member.getId().asLong());
+				var ddaoUser = ddaoUserRepository.getByDiscordID(member.getId().asLong());
 				if (ddaoUser == null) {
 					ddaoUser = ddaoUserRepository.save(createDdaoUser(member));
 					log.info(format("New user added %s", ddaoUser.getUserName()));

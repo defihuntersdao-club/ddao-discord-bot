@@ -15,19 +15,18 @@ import org.springframework.stereotype.Service;
 public class DiscordServiceImpl implements DiscordService {
 
 	private final DdaoUserRepository ddaoUserRepository;
-	private final GatewayDiscordClient client;
-	private static Snowflake guildId;
+	private final GatewayDiscordClient discordClient;
 
-	public DiscordServiceImpl(final DdaoUserRepository ddaoUserRepository, final GatewayDiscordClient client) {
+	public DiscordServiceImpl(final DdaoUserRepository ddaoUserRepository, final GatewayDiscordClient discordClient) {
 		this.ddaoUserRepository = ddaoUserRepository;
-		this.client = client;
+		this.discordClient = discordClient;
 	}
 
 	@Override
 	public void sendTGBindMessage(final Long tgId) {
 		var ddaoUser = ddaoUserRepository.findByTGID(tgId);
 		if (ddaoUser != null) {
-			Member member = client.getMemberById(getGuildId(), Snowflake.of(ddaoUser.getDiscordId())).block(Duration.ofSeconds(10));
+			Member member = discordClient.getMemberById(getGuildId(), Snowflake.of(ddaoUser.getDiscordId())).block(Duration.ofSeconds(10));
 			if (member != null) {
 				var channel = member.getPrivateChannel().block(Duration.ofSeconds(10));
 				if (channel != null) {
@@ -41,18 +40,14 @@ public class DiscordServiceImpl implements DiscordService {
 	}
 
 	private Snowflake getGuildId() {
-		if (guildId == null) {
-			client.getGuilds().collectList().doOnNext(e -> {
+		if (DiscordDataCache.getGuildId() == null) {
+			discordClient.getGuilds().collectList().doOnNext(e -> {
 				e.forEach(g -> {
-					setGuildId(g.getId());
+					DiscordDataCache.setGuildId(g.getId());
 				});
 			}).block(Duration.ofSeconds(10));
 		}
-		return guildId;
-	}
-
-	private void setGuildId(final Snowflake guildId) {
-		this.guildId = guildId;
+		return DiscordDataCache.getGuildId();
 	}
 
 }

@@ -59,6 +59,12 @@
       <version>3.12.0</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-collections4</artifactId>
+      <version>4.1</version>
+    </dependency>
+
     <!-- https://mvnrepository.com/artifact/org.web3j/core -->
     <dependency>
       <groupId>org.web3j</groupId>

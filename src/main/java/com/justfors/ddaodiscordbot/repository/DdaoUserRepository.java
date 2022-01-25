@@ -6,8 +6,8 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface DdaoUserRepository extends JpaRepository<DdaoUser, Long> {
 
-	@Query("select e from DdaoUser e where e.discordId = :discrodId")
-	DdaoUser getByDiscrodID(Long discrodId);
+	@Query("select e from DdaoUser e where e.discordId = :discordId")
+	DdaoUser getByDiscordID(Long discordId);
 
 	@Query("select e from DdaoUser e where e.telegramId = :tgId")
 	DdaoUser findByTGID(Long tgId);
