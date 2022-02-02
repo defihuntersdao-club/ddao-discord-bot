@@ -9,9 +9,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.tuple.Pair;
 
-/**
- * @author Alexander Sosnovsky
- */
 public final class DiscordDataCache {
 
 	private DiscordDataCache() {}

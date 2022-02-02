@@ -4,17 +4,18 @@ import static java.lang.String.format;
 
 import com.justfors.ddaodiscordbot.model.DdaoUser;
 import com.justfors.ddaodiscordbot.repository.DdaoUserRepository;
+import com.justfors.ddaodiscordbot.utils.Web3Client;
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.object.entity.Member;
 import discord4j.core.object.entity.Role;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -29,11 +30,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.web3j.contracts.eip20.generated.ERC20;
 import org.web3j.crypto.Credentials;
-import org.web3j.protocol.Web3j;
-import org.web3j.protocol.http.HttpService;
-import org.web3j.tx.gas.DefaultGasProvider;
 
 @Slf4j
 @Service
@@ -61,35 +58,20 @@ public class SchedulerService {
 	@Value("${contractHamsterAddress}")
 	private String contractHamsterAddress;
 
-	private ERC20 contractLevel1 = null;
-	private ERC20 contractLevel2 = null;
-	private ERC20 contractLevel3 = null;
-	private ERC20 contractHamster = null;
+	private static String acutalNode = null;
 
 	@SneakyThrows
 	@PostConstruct
 	public void init() {
-		NODE_URLS.add("https://rpc-mainnet.matic.network");
+		//NODE_URLS.add("https://rpc-matic.defihuntersdao.club/");
+		NODE_URLS.add("https://polygon-rpc.com/");
 		NODE_URLS.add("https://matic-mainnet.chainstacklabs.com");
-		NODE_URLS.add("https://rpc-mainnet.maticvigil.com");
-		NODE_URLS.add("https://rpc-mainnet.matic.quiknode.pro");
-		NODE_URLS.add("https://matic-mainnet-full-rpc.bwarelabs.com");
 
-		Web3j web3j = Web3j.build(new HttpService(getNode()));
-
-		contractLevel1 = ERC20.load(contractLevel1Address, web3j, CREDENTIALS, new DefaultGasProvider());
-		contractLevel2 = ERC20.load(contractLevel2Address, web3j, CREDENTIALS, new DefaultGasProvider());
-		contractLevel3 = ERC20.load(contractLevel3Address, web3j, CREDENTIALS, new DefaultGasProvider());
-		contractHamster = ERC20.load(contractHamsterAddress, web3j, CREDENTIALS, new DefaultGasProvider());
+		acutalNode = getNode();
 	}
 
 	private void reinit(){
-		Web3j web3j = Web3j.build(new HttpService(getNode()));
-
-		contractLevel1 = ERC20.load(contractLevel1Address, web3j, CREDENTIALS, new DefaultGasProvider());
-		contractLevel2 = ERC20.load(contractLevel2Address, web3j, CREDENTIALS, new DefaultGasProvider());
-		contractLevel3 = ERC20.load(contractLevel3Address, web3j, CREDENTIALS, new DefaultGasProvider());
-		contractHamster = ERC20.load(contractHamsterAddress, web3j, CREDENTIALS, new DefaultGasProvider());
+		acutalNode = getNode();
 	}
 
 	private String getNode() {
@@ -112,6 +94,7 @@ public class SchedulerService {
 	private static Map<Long, Pair<Member, List<Role>>> USER_ROLES = new ConcurrentHashMap();
 	private static List<Role> ROLES = new ArrayList<>();
 
+	@Transactional
 	@Scheduled(cron = "0 * * * * *")
 	public void refreshDiscrodMembers() {
 		var guildId = getGuildId();
@@ -155,7 +138,6 @@ public class SchedulerService {
 		log.info("finished refreshUserList");
 	}
 
-	@Transactional
 	public void checkWalletAssign(List<Member> members) {
 		log.info("started checkWalletAssign");
 		if (members != null) {
@@ -163,11 +145,10 @@ public class SchedulerService {
 				var ddaoUser = ddaoUserRepository.getByDiscordID(m.getId().asLong());
 				if (ddaoUser != null) {
 					if (StringUtils.isNotEmpty(ddaoUser.getWalletAddress()) && !ddaoUser.isWalletConfirm()){
-						ddaoUser.setWalletConfirm(true);
-						ddaoUserRepository.save(ddaoUser);
+						ddaoUserRepository.setWalletConfirm(ddaoUser.getId());
 						var channel = m.getPrivateChannel().block(Duration.ofSeconds(10));
 						if (channel != null) {
-							channel.createMessage("Your wallet successfully added.").block(Duration.ofSeconds(10));
+							channel.createMessage("Your wallet was successfully added!").block(Duration.ofSeconds(10));
 						} else {
 							log.info("couldn't get a channel to send the link message.");
 						}
@@ -181,32 +162,55 @@ public class SchedulerService {
 	private void refreshUserRoles() {
 		log.info("started refreshUserRoles");
 		Map<Long, DdaoUser> userBalances = ddaoUserRepository.findAll().stream().collect(Collectors.toMap(DdaoUser::getDiscordId, Function.identity(), (v1, v2) -> v1));
+
+		Map<String, List<Integer>> contractResults = new HashMap<>();
+
+		List<String> addresses = userBalances.values()
+				.stream()
+				.map(DdaoUser::getWalletAddress)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toList());
+
+		int userBatchSize = 100;
+
+		for (int i = 0; i <= addresses.size()/userBatchSize; i++) {
+			int finalIndex = i*userBatchSize + userBatchSize;
+			List sublist = addresses.subList(i*userBatchSize, Math.min(finalIndex, addresses.size()));
+			try {
+				contractResults.putAll(Web3Client.checkAddresses(sublist, acutalNode));
+			} catch (Exception e) {
+				log.error("Something wrong with check address");
+				reinit();
+			}
+		}
+
 		USER_ROLES.forEach((k,v) -> {
 			var ddaoUser = userBalances.get(k);
 			if (ddaoUser != null) {
 				if (StringUtils.isNotEmpty(ddaoUser.getWalletAddress())) {
 					try {
-						boolean isLvl1 = contractLevel1.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get(10, TimeUnit.SECONDS).intValue() > 0;
-						boolean isLvl2 = contractLevel2.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get(10, TimeUnit.SECONDS).intValue() > 0;
-						boolean isLvl3 = contractLevel3.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get(10, TimeUnit.SECONDS).intValue() > 0;
-						boolean isHamster = ddaoUser.isTelegramConfirm() ?
-								ddaoUser.isTelegramConfirm() :
-								contractHamster.balanceOf(ddaoUser.getWalletAddress()).sendAsync().get(10, TimeUnit.SECONDS).intValue() > 0;
-						if (isLvl1) {addRole(v, roleShrimp);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShrimp);}}
-						if (isLvl2) {addRole(v, roleShark);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShark);}}
-						if (isLvl3) {addRole(v, roleWhale);} else {if (ddaoUser.isRemovable()) {removeRole(v, roleWhale);}}
-						if (isHamster) {addRole(v, roleHamster);} else {if (ddaoUser.isRemovable()) {removeRole(v, roleHamster);}}
-						ddaoUser.setLevel1(isLvl1);
-						ddaoUser.setLevel2(isLvl2);
-						ddaoUser.setLevel3(isLvl3);
-						ddaoUser.setHamster(isHamster);
-						ddaoUserRepository.save(ddaoUser);
-					} catch (TimeoutException e) {
-						log.error("Got an timeout exception, trying to change node for contract check.");
-						reinit();
+						List<Integer> results = contractResults.get(ddaoUser.getWalletAddress());
+						if (results != null && !results.isEmpty()) {
+							if (results.get(0) != -1 && results.get(1) != -1 && results.get(2) != -1 && results.get(3) != -1) {
+								boolean isLvl1 = results.get(0) > 0;
+								boolean isLvl2 = results.get(1) > 0;
+								boolean isLvl3 = results.get(2) > 0;
+								boolean isHamster = ddaoUser.isTelegramConfirm() ? ddaoUser.isTelegramConfirm() : results.get(3) > 0;
+								if (isLvl1) {addRole(v, roleShrimp);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShrimp);}}
+								if (isLvl2) {addRole(v, roleShark);} else { if (ddaoUser.isRemovable()) {removeRole(v, roleShark);}}
+								if (isLvl3) {addRole(v, roleWhale);} else {if (ddaoUser.isRemovable()) {removeRole(v, roleWhale);}}
+								if (isHamster) {addRole(v, roleHamster);} else {if (ddaoUser.isRemovable() && !ddaoUser.isDirectLobsterAccess()) {removeRole(v, roleHamster);}}
+								ddaoUserRepository.updateRoles(isLvl1, isLvl2, isLvl3, isHamster, ddaoUser.getId());
+							} else {
+								log.info("User have some issue with contract check : " + ddaoUser.getWalletAddress());
+							}
+						}
 					} catch (Exception e) {
 						log.error(e.getMessage());
 					}
+				}
+				if (ddaoUser.isDirectLobsterAccess()) {
+					addRole(v, roleHamster);
 				}
 			}
 		});

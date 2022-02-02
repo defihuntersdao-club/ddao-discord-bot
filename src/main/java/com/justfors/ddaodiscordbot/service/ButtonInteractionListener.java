@@ -37,6 +37,8 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 	private String walletBindButton;
 	@Value("${tg.bind.button}")
 	private String tgBindButton;
+	@Value("${bitbrain.verification.button}")
+	private String bitbrainVerificationButton;
 	@Value("${tg.bind.prefix}")
 	private String tgBindPrefix;
 
@@ -68,24 +70,38 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 				if (guild != null) {
 					var privateChannel = member.getPrivateChannel().block(Duration.ofSeconds(10));
 					if (event.getCustomId().equals(walletBindButton)) {
-						privateChannel.createMessage(walletConfirmationLink + ddaoUser.getUuid())
+						privateChannel.createMessage(
+								"Follow this link to bind your wallet to Discord:\n" + walletConfirmationLink + ddaoUser.getUuid())
 								.block(Duration.ofSeconds(10));
 						log.info(format("Link sent to user %s", ddaoUser.getUserName()));
 						event.reply(InteractionApplicationCommandCallbackSpec.builder()
-								.content("I've sent you the link.")
+								.content("Hi, check your DM, I've sent you a link.	")
 								.ephemeral(true)
 								.build()).block(Duration.ofSeconds(10));
 					} else if (event.getCustomId().equals(tgBindButton)) {
 						var secretCode = tgBindPrefix + RandomStringUtils.randomAlphanumeric(10);
-						privateChannel.createMessage(secretCode)
+						privateChannel.createMessage(
+								format("Steps to bind your TG and Discord:\n"
+										+ "\n"
+										+ "1. Сopy this ➡️ %s\n"
+										+ "2. Paste it to https://t.me/ddao_info_bot", secretCode))
 								.block(Duration.ofSeconds(10));
 						log.info(format("Code sent to user %s", ddaoUser.getUserName()));
 						event.reply(InteractionApplicationCommandCallbackSpec.builder()
 								.content("I've sent you the secret code for telegram verification.")
 								.ephemeral(true)
 								.build()).block(Duration.ofSeconds(10));
-						ddaoUser.setTelegramCode(secretCode);
-						ddaoUserRepository.save(ddaoUser);
+						ddaoUserRepository.setTelegramCode(secretCode, ddaoUser.getId());
+					} else if (event.getCustomId().equals(bitbrainVerificationButton)) {
+						privateChannel.createMessage(
+										"Please copy the code that you received in your email in the following format ➡️ bitbrain:xxxxx\n"
+												+ "and paste it here")
+								.block(Duration.ofSeconds(10));
+						log.info(format("Sent bitbrain verification instruction to user %s", ddaoUser.getUserName()));
+						event.reply(InteractionApplicationCommandCallbackSpec.builder()
+								.content("Hi, check your DM, I've sent the instructions.")
+								.ephemeral(true)
+								.build()).block(Duration.ofSeconds(10));
 					}
 				}
 			}

@@ -37,4 +37,6 @@ public class DdaoUser {
 
 	private Long telegramId;
 
+	private boolean directLobsterAccess = false;
+
 }

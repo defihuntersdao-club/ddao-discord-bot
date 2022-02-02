@@ -30,7 +30,7 @@ public class DiscordServiceImpl implements DiscordService {
 			if (member != null) {
 				var channel = member.getPrivateChannel().block(Duration.ofSeconds(10));
 				if (channel != null) {
-					channel.createMessage("Your telegram successfully added.").block(Duration.ofSeconds(10));
+					channel.createMessage("Your Telegram and Discord were successfully connected!").block(Duration.ofSeconds(10));
 					log.info(format("TG bind notification sent to %s", ddaoUser.getUserName()));
 				} else {
 					log.info("couldn't get a channel to send the message.");

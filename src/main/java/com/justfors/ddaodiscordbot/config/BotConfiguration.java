@@ -32,6 +32,8 @@ public class BotConfiguration {
 	private String walletBindButton;
 	@Value("${tg.bind.button}")
 	private String tgBindButton;
+	@Value("${bitbrain.verification.button}")
+	private String bitbrainVerificationButton;
 	@Value("${bot.channel.name}")
 	private String botChannelName;
 
@@ -55,8 +57,9 @@ public class BotConfiguration {
 //			});
 //		});
 //
-//		Button walletButton = Button.primary(walletBindButton, "Let's go!");
+//		Button walletButton = Button.primary(walletBindButton, "Verify your wallet");
 //		Button tgButton = Button.primary(tgBindButton, "TG verify");
+//		Button bitbrnVerificationButton = Button.primary(bitbrainVerificationButton, "Verify Bitbrain");
 //		var channel = client.getChannelById(Snowflake.of(channelId.get()))
 //				.ofType(GuildMessageChannel.class)
 //				.block();
@@ -71,7 +74,7 @@ public class BotConfiguration {
 //										"This is a read-only connection. Do not share your private keys."
 //												+ " We will never ask for your seed phrase. We will never DM you.", true)
 //								.build())
-//						.addComponent(ActionRow.of(walletButton, tgButton))
+//						.addComponent(ActionRow.of(walletButton, tgButton, bitbrnVerificationButton))
 //						.build()
 //		).block();
 
