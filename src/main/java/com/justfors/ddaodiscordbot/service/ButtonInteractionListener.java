@@ -43,10 +43,12 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 	private String tgBindPrefix;
 
 	private String errorMsgCantSend = "Cannot send messages to this user";
-	private String errorMsgCantSendResponse = "Hi, I cannot send you a message.\n"
-			+ "Please enable direct messages sending in your settings.\n"
-			+ "\n"
-			+ "You can disable it after the verification is completed.";
+	private String errorMsgCantSendResponse = """
+			Hi, I cannot send you a message
+			Please enable direct messages sending in your settings.
+						
+			You can disable it after the verification is completed.
+						""";
 	private String errorMsgSmthWntWrng = "Oops, something went wrong, contact the support.";
 
 	public ButtonInteractionListener(final DdaoUserRepository ddaoUserRepository) {
@@ -71,20 +73,23 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 					var privateChannel = member.getPrivateChannel().block(Duration.ofSeconds(10));
 					if (event.getCustomId().equals(walletBindButton)) {
 						privateChannel.createMessage(
-								"Follow this link to bind your wallet to Discord:\n" + walletConfirmationLink + ddaoUser.getUuid())
+										"Follow this link to bind your wallet to Discord:\n" + walletConfirmationLink
+												+ ddaoUser.getUuid())
 								.block(Duration.ofSeconds(10));
 						log.info(format("Link sent to user %s", ddaoUser.getUserName()));
 						event.reply(InteractionApplicationCommandCallbackSpec.builder()
-								.content("Hi, check your DM, I've sent you a link.	")
+								.content("Hi, check your DM, I've sent you a link.")
 								.ephemeral(true)
 								.build()).block(Duration.ofSeconds(10));
 					} else if (event.getCustomId().equals(tgBindButton)) {
 						var secretCode = tgBindPrefix + RandomStringUtils.randomAlphanumeric(10);
 						privateChannel.createMessage(
-								format("Steps to bind your TG and Discord:\n"
-										+ "\n"
-										+ "1. Сopy this ➡️ %s\n"
-										+ "2. Paste it to https://t.me/ddao_info_bot", secretCode))
+										format("""
+												Steps to bind your TG and Discord:
+												            
+												1. Сopy this ➡️ %s
+												2. Paste it to https://t.me/ddao_info_bot
+												""", secretCode))
 								.block(Duration.ofSeconds(10));
 						log.info(format("Code sent to user %s", ddaoUser.getUserName()));
 						event.reply(InteractionApplicationCommandCallbackSpec.builder()
@@ -93,9 +98,10 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 								.build()).block(Duration.ofSeconds(10));
 						ddaoUserRepository.setTelegramCode(secretCode, ddaoUser.getId());
 					} else if (event.getCustomId().equals(bitbrainVerificationButton)) {
-						privateChannel.createMessage(
-										"Please copy the code that you received in your email in the following format ➡️ bitbrain:xxxxx\n"
-												+ "and paste it here")
+						privateChannel.createMessage("""
+										Please copy the code that you received in your email in the following format ➡️ bitbrain:xxxxx
+										and paste it here"
+										""")
 								.block(Duration.ofSeconds(10));
 						log.info(format("Sent bitbrain verification instruction to user %s", ddaoUser.getUserName()));
 						event.reply(InteractionApplicationCommandCallbackSpec.builder()
@@ -111,7 +117,8 @@ public class ButtonInteractionListener extends MessageListener implements EventL
 			event.reply(InteractionApplicationCommandCallbackSpec.builder()
 					.addEmbed(EmbedCreateSpec.builder()
 							.description(isErrorMsgCantSend ? errorMsgCantSendResponse : errorMsgSmthWntWrng)
-							.image(isErrorMsgCantSend ? "https://i.imgur.com/xXzmVEs.png" : "https://t3.ftcdn.net/jpg/02/01/43/66/360_F_201436679_ZCLSEuwhRvmQEVofXHPpvLeV5sBLQ3vp.jpg")
+							.image(isErrorMsgCantSend ? "https://i.imgur.com/xXzmVEs.png"
+									: "https://t3.ftcdn.net/jpg/02/01/43/66/360_F_201436679_ZCLSEuwhRvmQEVofXHPpvLeV5sBLQ3vp.jpg")
 							.build())
 					.ephemeral(true)
 					.build()).block(Duration.ofSeconds(10));

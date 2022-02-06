@@ -53,7 +53,7 @@ public class MessageCreateEventListener extends MessageListener implements Event
 						privateChannel.createMessage(successMsg).block(Duration.ofSeconds(10));
 						ddaoUserRepository.setDirectLobsterAccessTrue(ddaoUser.getId());
 						bitbrainRepository.exprireStatus(code.getId());
-						log.info(format("Bitbrain validation for user %s successfully completed", ddaoUser.getUserName()));
+						log.info(format("Bitbrain validation for user %s successfully completed with code %s", ddaoUser.getUserName(), code.getCode()));
 					} else {
 						privateChannel.createMessage(errMsg).block(Duration.ofSeconds(10));
 						log.info(format("Code %s not found", message.getContent()));

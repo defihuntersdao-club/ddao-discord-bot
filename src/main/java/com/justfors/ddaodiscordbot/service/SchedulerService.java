@@ -44,6 +44,8 @@ public class SchedulerService {
 	private String roleWhale;
 	@Value("${role.hamster}")
 	private String roleHamster;
+	@Value("${role.guru}")
+	private String roleGuru;
 
 	private static final CircularFifoQueue<String> NODE_URLS = new CircularFifoQueue();
 
@@ -210,7 +212,9 @@ public class SchedulerService {
 					}
 				}
 				if (ddaoUser.isDirectLobsterAccess()) {
-					addRole(v, roleHamster);
+					addRole(v, roleGuru);
+				} else {
+					removeRole(v, roleGuru);
 				}
 			}
 		});

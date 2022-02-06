@@ -33,31 +33,60 @@ public final class Web3Client {
 
 	private static final String RESULT = "result";
 
-	private static String requestTemplate = "{"
-			+ "\"jsonrpc\":\"2.0\","
-			+ "\"method\":\"eth_call\","
-			+ "\"params\":[{\"from\":\"0x7e4e21e00bb52fe49731061b033964c182af9b39\",\"to\":\"0x2856cf575116f7b4fa02ec6c786faa1223b70eef\",\"data\":\"0x70a08231000000000000000000000000{0}\"},"
-			+ "\"latest\"],"
-			+ "\"id\":0"
-			+ "},"
-			+ "{\"jsonrpc\":\"2.0\","
-			+ "\"method\":\"eth_call\","
-			+ "\"params\":[{\"from\":\"0x7e4e21e00bb52fe49731061b033964c182af9b39\",\"to\":\"0x4139ee03053b84280cabe7ede25220edfa484e59\",\"data\":\"0x70a08231000000000000000000000000{0}\"},"
-			+ "\"latest\"],"
-			+ "\"id\":0"
-			+ "},"
-			+ "{\"jsonrpc\":\"2.0\","
-			+ "\"method\":\"eth_call\","
-			+ "\"params\":[{\"from\":\"0x7e4e21e00bb52fe49731061b033964c182af9b39\",\"to\":\"0xd8b355bc31b74feabdedd0e546ddfee9438fb28e\",\"data\":\"0x70a08231000000000000000000000000{0}\"},"
-			+ "\"latest\"],"
-			+ "\"id\":0"
-			+ "},"
-			+ "{\"jsonrpc\":\"2.0\","
-			+ "\"method\":\"eth_call\","
-			+ "\"params\":[{\"from\":\"0x7e4e21e00bb52fe49731061b033964c182af9b39\",\"to\":\"0xcc6ae25446913bf846e1022cde3e3854a9e8ab1e\",\"data\":\"0x70a08231000000000000000000000000{0}\"},"
-			+ "\"latest\"],"
-			+ "\"id\":0"
-			+ "}";
+	private static String requestTemplate = """
+			  {
+				"jsonrpc": "2.0",
+				"method": "eth_call",
+				"params": [
+				  {
+					"from": "0x7e4e21e00bb52fe49731061b033964c182af9b39",
+					"to": "0x2856cf575116f7b4fa02ec6c786faa1223b70eef",
+					"data": "0x70a08231000000000000000000000000{0}"
+				  },
+				  "latest"
+				],
+				"id": 0
+			  },
+			  {
+				"jsonrpc": "2.0",
+				"method": "eth_call",
+				"params": [
+				  {
+					"from": "0x7e4e21e00bb52fe49731061b033964c182af9b39",
+					"to": "0x4139ee03053b84280cabe7ede25220edfa484e59",
+					"data": "0x70a08231000000000000000000000000{0}"
+				  },
+				  "latest"
+				],
+				"id": 0
+			  },
+			  {
+				"jsonrpc": "2.0",
+				"method": "eth_call",
+				"params": [
+				  {
+					"from": "0x7e4e21e00bb52fe49731061b033964c182af9b39",
+					"to": "0xd8b355bc31b74feabdedd0e546ddfee9438fb28e",
+					"data": "0x70a08231000000000000000000000000{0}"
+				  },
+				  "latest"
+				],
+				"id": 0
+			  },
+			  {
+				"jsonrpc": "2.0",
+				"method": "eth_call",
+				"params": [
+				  {
+					"from": "0x7e4e21e00bb52fe49731061b033964c182af9b39",
+					"to": "0xcc6ae25446913bf846e1022cde3e3854a9e8ab1e",
+					"data": "0x70a08231000000000000000000000000{0}"
+				  },
+				  "latest"
+				],
+				"id": 0
+			  }
+  			""";
 
 	private static String prepareCheckBlock(String address) {
 		String loverCaseAddress = address.toLowerCase().substring(2);
@@ -66,8 +95,7 @@ public final class Web3Client {
 
 	@SneakyThrows
 	public static void main(String[] args) {
-		String testAddress = "https://matic-mainnet.chainstacklabs.com";
-		Map<String, List<Integer>> contranctResults = new HashMap<>();
+		String testAddress = "https://polygon-rpc.com/";
 		List<String> addresses = Arrays.asList(
 				"0x5dfcda39199c47a962e39975c92d91e76d16a335",
 				"0xB248B3309e31Ca924449fd2dbe21862E9f1accf5"
@@ -98,7 +126,7 @@ public final class Web3Client {
 		}
 		builder.append("]");
 
-		InputStream result = performIO(builder.toString(), url);
+		InputStream result = performIO(builder.toString().replace("\n", "").replace("\t", ""), url);
 
 		List<LinkedHashMap> value = (List<LinkedHashMap>) objectMapper.readValue(result, Object.class);
 		for (int i = 0; i < addresses.size(); i++) {

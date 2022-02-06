@@ -5,13 +5,10 @@ import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClientBuilder;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.Event;
-import discord4j.core.event.domain.message.MessageCreateEvent;
 import discord4j.core.object.component.ActionRow;
 import discord4j.core.object.component.Button;
 import discord4j.core.object.entity.channel.GuildMessageChannel;
-import discord4j.core.spec.EmbedCreateFields.Author;
 import discord4j.core.spec.EmbedCreateSpec;
-import discord4j.core.spec.MessageCreateFields.FileSpoiler;
 import discord4j.core.spec.MessageCreateSpec;
 import discord4j.gateway.intent.Intent;
 import discord4j.gateway.intent.IntentSet;
@@ -71,8 +68,10 @@ public class BotConfiguration {
 //								.description("DDAO.bot")
 //								.thumbnail("https://i.imgur.com/dmd3Yoo.png")
 //								.addField("Verify your assets",
-//										"This is a read-only connection. Do not share your private keys."
-//												+ " We will never ask for your seed phrase. We will never DM you.", true)
+//										"""
+//												This is a read-only connection. Do not share your private keys.
+//												We will never ask for your seed phrase. We will never DM you.
+//												""", true)
 //								.build())
 //						.addComponent(ActionRow.of(walletButton, tgButton, bitbrnVerificationButton))
 //						.build()
